@@ -6,36 +6,23 @@
       placeholder="What needs to be done"
       v-model="newTodo"
       @keyup.enter="addTodo">
-    <div
-      v-for="(todo, index) in todosFiltered"
-      :key="todo.id"
-      class="todo-item">
-      <div class="todo-item-left">
-        <input type="checkbox" v-model="todo.completed">
-        <div
-          v-if="!todo.editing"
-          @click="editTodo(todo)"
-          class="todo-item-label"
-          :class="{ completed: todo.completed }">{{ todo.title }}</div>
-        <input
-          v-else
-          class="todo-item-edit"
-          type="text"
-          @blur="doneEdit(todo)"
-          @keyup.enter="doneEdit(todo)"
-          @keyup.esc ="cancelEdit(todo)"
-          v-model="todo.title"
-          v-focus
-          >
-      </div>
-      <div class="remove-title" @click="removeTodo(index)">
-        &times;
-      </div>
-    </div>
+
+    <transition-group name="fade" enter-active-class="animated fadeInUp" leave-active-class="animated fadeOutDown">
+      <todo-item
+        v-for="(todo, index) in todosFiltered"
+        :key="todo.id"
+        :todo="todo"
+        :index="index"
+        :checkAll="!anyRemaining"
+        @removedTodo="removeTodo"
+        @finishedEdit="finishedEdit">
+      </todo-item>
+    </transition-group>
     <div class="extra-container">
       <div>
         <label>
-          <input type="checkbox" :checked="!anyRemaining" @click="checkAll"> Check All
+          <input type="checkbox" :checked="!anyRemaining" @click="checkAll">
+          Check All
         </label>
       </div>
       <div>{{ remaining }} items left</div>
@@ -51,22 +38,25 @@
         <button :class="{active: filter == 'completed'}"
           @click="filter = 'completed'">Completed</button>
       </div>
-      <!-- <div>
-        <transition name="fade">
-          <button v-if="showClearCompletedButton"
-            @click="clearCompleted">Clear Completed</button>
-        </transition>
-      </div> -->
       <div>
-        Clear Completed
+        <transition name="fade">
+          <button @click="clearCompleted" v-if="atLeastOneCompleted">
+            Clear Completed
+          </button>
+        </transition>
       </div>
     </div>
   </div>
 </template>
 
 <script>
+import TodoItem from './TodoItem'
+
 export default {
   name: 'todo-list',
+  components: {
+    TodoItem,
+  },
   data () {
     return {
       newTodo: '',
@@ -108,13 +98,15 @@ export default {
           return todo.completed
         })
       }
-    }
-  },
-  directives: {
-    focus: {
-      inserted: function (el) {
-        el.focus()
+    },
+    atLeastOneCompleted(){
+      var i;
+      for (i = 0; i < this.todos.length; i++){
+        if(this.todos[i].completed == true){
+          return true
+        }
       }
+      return false
     }
   },
   methods: {
@@ -133,21 +125,8 @@ export default {
       this.idForTodo++
     },
     removeTodo(index){
+      console.log('index that is being reomved is ' + index)
       this.todos.splice(index, 1)
-    },
-    editTodo(todo){
-      this.beforeEditCache = todo.title
-      todo.editing = true
-    },
-    doneEdit(todo) {
-      if(todo.title.trim().length == 0){
-        todo.title = this.beforeEditCache
-      }
-      todo.editing = false
-    },
-    cancelEdit(todo){
-      todo.title = this.beforeEditCache
-      todo.editing = false
     },
     checkAll(){
       if(this.remaining){
@@ -158,12 +137,24 @@ export default {
       }else{
         this.todos.forEach( (todo) => todo.completed = false)
       }
+    },
+    clearCompleted(){
+      this.todos = this.todos.filter((todo) => {
+        return !todo.completed
+      })
+    },
+    finishedEdit(data){
+      this.todos.splice(data.index, 1, data.todo)
+      // this.todos[data.index] = data.todo
     }
   }
 }
 </script>
 
 <style>
+@import url
+("https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.5.2/animate.min.css");
+
 .todo-input {
   width: 100%;
   padding: 10px 18px;
@@ -180,6 +171,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  animation-duration: 0.3s;
 }
 
 .remove-item {
@@ -218,9 +210,17 @@ export default {
 .completed {
   text-decoration: line-through;
   color:grey;
-
 }
+
 .active {
   background-color: yellow;
+}
+
+.fade-enter-active, .fade-leave-active {
+  transition: opacity .2s;
+}
+
+.fade-enter, .fade-leave-to {
+  opacity: 0;
 }
 </style>
